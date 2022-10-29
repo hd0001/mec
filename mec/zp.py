@@ -145,9 +145,9 @@ class MyEnergiDevice:
             else:
                 if 'Grid' not in self._values:
                     # only take the first grid value for non-netting 3 phase
-                    self._values['Grid'] = value
+                   self._values['Grid'] = value
                 else:
-                    if 'net_phases' in house_data and house_data['net_phases']:
+                    # if 'net_phases' in house_data and house_data['net_phases']:
                         # 3 phase all report with same name "grid" so need to sum them
                         # note this produces a net import/export number.
                         # if phases are not netted Zappi assumes export monitoring on phase 1
@@ -188,7 +188,7 @@ class MyEnergiDiverter(MyEnergiDevice):
 
     def __init__(self, data, hc):
         super().__init__(data, hc)
-        voltage = self._glimpse(data, 'vol')
+        voltage = self._glimpse_safe(data, 'vol') # Not there anymore :shrug:
         if voltage > 1000:
             self.voltage = voltage / 10
         else:
@@ -378,8 +378,11 @@ class MyEnergi:
 
         for device in raw:
             for (e, v) in device.items():
-                # Skip devices that don't exist.
-                if isinstance(v, list) and len(v) == 0:
+                # Skip things that aren't lists of devices
+                if not isinstance(v, list):
+                    continue
+                # Skip empty lists of devices
+                if len(v) == 0:
                     continue
                 if e in ('asn', 'fwv'):
                     continue
@@ -775,7 +778,9 @@ class MyEnergiHost:
                                                                    day.tm_mday))
         key = 'U{}'.format(zid)
         if key in res:
+            log.debug('Data, as received\n%s', pp.pformat(res))
             return res[key]
+        log.debug('Data, as received\n%s', pp.pformat(res))
         return res
 
     def get_minute_data(self, zid, day=None):

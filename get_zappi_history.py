@@ -6,22 +6,31 @@ import getopt
 import time
 import sys
 import json
-
+import logging
+import os.path
+import logging.handlers
+import yaml
 import tabulate
 
-import run_zappi
 import mec.zp
 import mec.power_meter
 
 # This needs to have debugging disabled.
 
-FIELD_NAMES = {'gep': 'Generation',
+FIELD_NAMES = {'gep': 'Generated',
                'gen': 'Generated Negative',
-               'h1d': 'Zappi diverted',
+               'h1d': 'Phase 1 diverted',
+               'h2d': 'Phase 2 diverted',
+               'h3d': 'Phase 3 diverted',
                'h1b': 'Zappi imported',
                'imp': 'Imported',
                'exp': 'Exported'}
 
+RC_FILE = '~/.zappirc'
+
+DELAY = 60
+
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 
 class Day():
 
@@ -29,6 +38,46 @@ class Day():
         self.tm_year = year
         self.tm_mon = month
         self.tm_mday = day
+
+
+def setup_logging(debug):
+    """Configure global logging state"""
+
+    if not debug:
+        return
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    # Log info to stdout natively.
+    channel = logging.StreamHandler()
+    oformat = logging.Formatter()
+    channel.setLevel(logging.DEBUG)
+    channel.setFormatter(oformat)
+    root.addHandler(channel)
+
+    # Log debug to file, and add prefix.
+    if not os.path.exists(LOG_DIR):
+        os.mkdir(LOG_DIR)
+    log_file = os.path.join(LOG_DIR, 'myenergi.log')
+    channel = logging.handlers.TimedRotatingFileHandler(
+        log_file, encoding='utf-8')
+    my_pid = os.getpid()
+    mformat = '%(asctime)s - {} - %(name)s - %(levelname)s - %(message)s'.format(my_pid)
+    oformat = logging.Formatter(mformat)
+    channel.setLevel(logging.DEBUG)
+    channel.setFormatter(oformat)
+    root.addHandler(channel)
+
+
+# Get logging handle for this file.
+log = logging.getLogger('run_zappi')
+
+
+def load_config(debug=True):
+    """Load the config file and return dict"""
+    setup_logging(debug)
+    with open(os.path.expanduser(RC_FILE), 'r') as ofh:
+        return yaml.safe_load(ofh)
 
 
 show_headers = True
@@ -76,7 +125,7 @@ def main():
         elif opt == '--json':
             use_json = True
 
-    config = run_zappi.load_config(debug=False)
+    config = load_config(debug=True)
 
     server_conn = mec.zp.MyEnergiHost(config['username'], config['password'])
     server_conn.refresh()
@@ -134,8 +183,7 @@ def load_day(server_conn, zid, day, hourly, totals, use_json):
         res = server_conn.get_minute_data(zid, day=day)
         prev_sample_time = -60
 
-    headers = ['imp', 'exp', 'gen', 'gep', 'h1d', 'h1b',
-               'pect1', 'nect1', 'pect2', 'nect2', 'pect3', 'nect3']
+    headers = ['imp', 'exp', 'gen', 'gep', 'h1d', 'h2d', 'h3d', 'h1b']
     table_headers = ['Time', 'Duration']
     data = []
     pm_totals = {}
