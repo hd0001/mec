@@ -41,7 +41,7 @@ def setup_logging(debug):
     # Log info to stdout natively.
     channel = logging.StreamHandler()
     oformat = logging.Formatter()
-    channel.setLevel(logging.INFO)
+    channel.setLevel(logging.DEBUG)
     channel.setFormatter(oformat)
     root.addHandler(channel)
 

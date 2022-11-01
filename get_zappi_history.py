@@ -76,7 +76,7 @@ def main():
         elif opt == '--json':
             use_json = True
 
-    config = run_zappi.load_config(debug=False)
+    config = run_zappi.load_config(debug=True)
 
     server_conn = mec.zp.MyEnergiHost(config['username'], config['password'])
     server_conn.refresh()
